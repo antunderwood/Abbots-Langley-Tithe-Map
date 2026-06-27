@@ -10,7 +10,9 @@ const titheAttr =
   'Tithe map &copy; <a href="https://www.allhs.org.uk/">Abbots Langley Local History Society</a>';
 try {
   const archive = new pmtiles.PMTiles(TITHE_PMTILES);
-  const tithe = pmtiles.leafletRasterLayer(archive, { attribution: titheAttr, maxNativeZoom: 19 });
+  // maxNativeZoom matches the pmtiles' own max zoom (see `pmtiles show tithe.pmtiles`);
+  // Leaflet upscales beyond it instead of requesting tiles that don't exist.
+  const tithe = pmtiles.leafletRasterLayer(archive, { attribution: titheAttr, maxNativeZoom: 17 });
   tithe.on("tileerror", () => {}); // tiles outside the parish bbox are expected to 404
   tithe.addTo(map);
 } catch (e) {

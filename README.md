@@ -17,8 +17,12 @@ source scans: it makes both georeferencing and any future plot digitisation far 
 ## Run locally
 
 ```sh
-python3 -m http.server 8000   # then open http://localhost:8000
+python3 scripts/serve.py 8000   # then open http://localhost:8000
 ```
+
+Use `scripts/serve.py`, not `python3 -m http.server`: PMTiles fetches tiles by HTTP byte-range,
+which the stdlib server doesn't support (the historic layer fails and the console floods with
+broken-pipe errors). Cloudflare Pages supports ranges natively in production.
 
 The viewer works without `tithe.pmtiles` (you just see OSM); add the historic layer once you
 have georeferenced the scans.
@@ -62,9 +66,16 @@ sheets don't overlap so they can't be auto-mosaicked).
      are mostly blank margin (title cartouche, parish-boundary edge) so are low priority.
    - Tip: give each GeoTIFF an alpha/nodata band (or crop the white paper margins) so a sheet's
      blank border doesn't paint over its neighbour in the mosaic.
-3. **Pack to PMTiles** (lists the GeoTIFFs you produced; later files win in any overlap):
+   - **Check each sheet's alignment** before moving on (OSM vs your warped sheet, same extent):
+     ```sh
+     micromamba run -n abbots_langley_map python scripts/align_check.py source_images/<sheet>_modified.tif
+     ```
+     Opens as `<sheet>_check.jpg`. Trace the canal or a main road across both panels; if it
+     tracks, the fit is good. If a corner drifts, add a control point there and re-export.
+3. **Pack to PMTiles** (lists the GeoTIFFs you produced; later files win in any overlap).
+   Run inside the env so GDAL is on PATH (`pmtiles` comes from `brew install pmtiles`):
    ```sh
-   scripts/build_tiles.sh sheet1.tif sheet2.tif ... sheetN.tif
+   micromamba run -n abbots_langley_map scripts/build_tiles.sh sheet1.tif ... sheetN.tif
    ```
    Produces `tithe.pmtiles`. Drop it next to `index.html`.
 
