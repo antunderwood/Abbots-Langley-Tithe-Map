@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abbots Langley Tithe Map (c.1839) overlaid on a modern map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="panel">
+    <header>
+      <h1>Abbots Langley Tithe Map</h1>
+      <p class="sub">19th-century tithe map under a modern map. Fade the modern layer to see beneath.</p>
+    </header>
+
+    <div class="control">
+      <label><input type="checkbox" id="toggleModern" checked> Show modern map</label>
+    </div>
+    <div class="control">
+      <label for="opacity">Modern map opacity</label>
+      <input type="range" id="opacity" min="0" max="100" value="60">
+    </div>
+
+    <div class="control">
+      <input type="search" id="search" placeholder="Search plot no, owner, field name, land use">
+      <p class="count"><span id="count">0</span> plots</p>
+    </div>
+
+    <ul id="results"></ul>
+  </div>
+
+  <button id="panelToggle" aria-label="Toggle panel">&#9776;</button>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Source scans + tile cache: large, and © ALLHS (do not commit / re-host without permission)
+source_images/
+award.xls
+*.xls
+
+# Georeferencing output (built locally, can be large)
+tithe.pmtiles
+*.tif
+*.mbtiles
