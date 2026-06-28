@@ -97,10 +97,36 @@ instead of PMTiles. Kept as a fallback.
 
 GitHub Pages works too, but watch the 1 GB repo soft-limit if `tithe.pmtiles` is large.
 
+## Plot locations (search highlight)
+
+Searching a plot can pan to it and drop a highlight, for plots whose number we've located on the
+map. Locations live in `data/plot_points.geojson` (point per plot, WGS84). The viewer loads it if
+present; absent, search still works without map pins.
+
+### Generate locations by OCR
+
+```sh
+micromamba run -n abbots_langley_map python scripts/ocr_plots.py        # all sheets
+```
+
+Runs digit OCR (several preprocessing passes) on each original scan, keeps only reads that match a
+known plot number, and converts pixel positions to lon/lat via each sheet's `.points` GCPs. Writes
+`data/plot_points.geojson` and `data/plots_missing.txt` (numbers not auto-located). Coverage is
+partial (faint/tiny numbers are missed); a few pins may be misplaced where a digit was misread.
+
+### Fill the gaps by hand in QGIS
+
+1. Load `data/plot_points.geojson` and your georeferenced sheets in QGIS.
+2. Open `data/plots_missing.txt` for the list of numbers still needing a point.
+3. Toggle editing on the geojson layer, use **Add Point Feature**, click each missing number on
+   the historic map, and type its value in the `number` field.
+4. Save edits. The viewer reads the same file, so just redeploy.
+
+(Tip: to also correct a misplaced pin, use the Vertex Tool to drag it onto the right plot.)
+
 ## Roadmap
 
 - **Phase 1 (done):** viewer + overlay + opacity + searchable records.
-- **Phase 2:** a clickable point per plot, from detecting/OCR-ing the plot-number labels on the
-  georeferenced raster (validated against the known 1,075 numbers) -> `data/plot_points.geojson`.
+- **Phase 2 (done):** clickable/searchable point per plot via OCR + manual fill (above).
 - **Phase 3 (R&D):** automatic polygonisation of plot boundaries, spatial-joined to the points.
   Semi-automatic with manual cleanup; not turnkey.

@@ -44,10 +44,32 @@ document.getElementById("panelToggle").addEventListener("click", () =>
 const results = document.getElementById("results");
 const countEl = document.getElementById("count");
 let plots = {};
+let locations = {}; // plot number -> [lat, lng], from data/plot_points.geojson (partial coverage)
+let highlight = null; // the single moving highlight marker
 
 function acreage(p) {
   // Statute measure: acres-roods-perches.
   return `${p.acres || 0}a ${p.roods || 0}r ${p.perches || 0}p`;
+}
+
+function popupHtml(no, p) {
+  return `<b>Plot ${no}</b> &mdash; ${p.name}<br>${acreage(p)} &middot; ${p.use || "?"}<br>` +
+    `Owner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}` +
+    (p.remarks ? `<br><i>${p.remarks}</i>` : "");
+}
+
+// Pan to a plot and drop a highlight, if we have a location for it.
+function locate(no) {
+  const ll = locations[no];
+  if (!ll) return;
+  map.setView(ll, 17);
+  if (!highlight) {
+    highlight = L.circleMarker(ll, { radius: 12, color: "#d62828", weight: 3, fillOpacity: 0.15 });
+    highlight.addTo(map);
+  } else {
+    highlight.setLatLng(ll);
+  }
+  highlight.bindPopup(popupHtml(no, plots[no])).openPopup();
 }
 
 function render(filter) {
@@ -59,8 +81,13 @@ function render(filter) {
     if (f && !hay.includes(f)) continue;
     shown++;
     const li = document.createElement("li");
+    const here = locations[no] ? ' <span class="pin" title="Show on map">&#128205;</span>' : "";
+    if (locations[no]) {
+      li.className = "locatable";
+      li.dataset.no = no;
+    }
     li.innerHTML =
-      `<span class="no">${no}</span> <span class="name">${p.name}</span>` +
+      `<span class="no">${no}</span> <span class="name">${p.name}</span>${here}` +
       `<div class="meta">${acreage(p)} &middot; ${p.use || "?"}</div>` +
       `<div class="meta">Owner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}</div>` +
       (p.remarks ? `<div class="meta rem">${p.remarks}</div>` : "");
@@ -69,6 +96,12 @@ function render(filter) {
   results.replaceChildren(frag);
   countEl.textContent = shown;
 }
+
+// Click a locatable result to jump to it on the map.
+results.addEventListener("click", (e) => {
+  const li = e.target.closest("li.locatable");
+  if (li) locate(li.dataset.no);
+});
 
 fetch("data/plots.json")
   .then((r) => r.json())
@@ -80,5 +113,17 @@ fetch("data/plots.json")
     results.innerHTML = "<li>Could not load plot data.</li>";
     console.error(e);
   });
+
+// Optional layer: located plot numbers (partial). Absent until the OCR step has run.
+fetch("data/plot_points.geojson")
+  .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+  .then((geo) => {
+    for (const ft of geo.features) {
+      const [lon, lat] = ft.geometry.coordinates;
+      locations[ft.properties.number] = [lat, lon];
+    }
+    render(document.getElementById("search").value); // re-render so items become locatable
+  })
+  .catch(() => console.info("No plot_points.geojson yet; run scripts/ocr_plots.py"));
 
 document.getElementById("search").addEventListener("input", (e) => render(e.target.value));
