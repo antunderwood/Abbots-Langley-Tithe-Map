@@ -7,3 +7,7 @@ award.xls
 tithe.pmtiles
 *.tif
 *.mbtiles
+
+# QGIS/SQLite transient sidecars
+*.gpkg-shm
+*.gpkg-wal
