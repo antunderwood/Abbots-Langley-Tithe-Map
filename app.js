@@ -156,7 +156,7 @@ function render(filter) {
 // Click a locatable result to jump to it on the map.
 results.addEventListener("click", (e) => {
   const li = e.target.closest("li.locatable");
-  if (li) { locate(li.dataset.no); closeDrawer(); } // close drawer so the map is visible on mobile
+  if (li) { locate(li.dataset.no); li.scrollIntoView({ block: "start", behavior: "smooth" }); closeDrawer(); }
 });
 
 const dotLayer = L.layerGroup();
