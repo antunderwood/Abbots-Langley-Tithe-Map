@@ -1,10 +1,11 @@
 // Abbots Langley tithe map viewer. Vanilla Leaflet, no build step.
 
-const ABBOTS_LANGLEY = [51.7045, -0.4146];
 const TITHE_PMTILES = "tithe.pmtiles"; // produced by the georeferencing workflow (see README)
+// Bounding box of the parish plots; fitBounds picks the right zoom for any screen size.
+const PARISH_BOUNDS = [[51.679, -0.478], [51.749, -0.404]];
 
-const map = L.map("map", { center: ABBOTS_LANGLEY, zoom: 14, minZoom: 11, maxZoom: 19,
-  zoomControl: false });
+const map = L.map("map", { minZoom: 11, maxZoom: 19, zoomControl: false });
+map.fitBounds(PARISH_BOUNDS, { padding: [24, 24] });
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 // Base layer: modern OpenStreetMap (always on).
