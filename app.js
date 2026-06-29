@@ -68,6 +68,7 @@ let locations = {}; // plot number -> [lat, lng], from data/plot_points.geojson 
 let polygons = {};  // plot number -> GeoJSON ring [[lon,lat],...], from data/plot_polygons.geojson
 let highlight = null; // the single moving point highlight
 let highlightPoly = null; // the single field-fill highlight
+let lastLocated = null; // plot number most recently clicked, for restoring scroll on search clear
 
 function acreage(p) {
   // Statute measure: acres-roods-perches (see help.html: 1 acre = 4 roods, 1 rood = 40 perches).
@@ -156,7 +157,7 @@ function render(filter) {
 // Click a locatable result to jump to it on the map.
 results.addEventListener("click", (e) => {
   const li = e.target.closest("li.locatable");
-  if (li) { locate(li.dataset.no); li.scrollIntoView({ block: "start", behavior: "smooth" }); closeDrawer(); }
+  if (li) { lastLocated = li.dataset.no; locate(li.dataset.no); li.scrollIntoView({ block: "start", behavior: "smooth" }); closeDrawer(); }
 });
 
 const dotLayer = L.layerGroup();
@@ -209,4 +210,10 @@ document.getElementById("toggleDots").addEventListener("change", (e) => {
   else dotLayer.remove();
 });
 
-document.getElementById("search").addEventListener("input", (e) => render(e.target.value));
+document.getElementById("search").addEventListener("input", (e) => {
+  render(e.target.value);
+  if (e.target.value === "" && lastLocated) {
+    const el = document.querySelector(`#results li[data-no="${lastLocated}"]`);
+    if (el) el.scrollIntoView({ block: "start" });
+  }
+});
