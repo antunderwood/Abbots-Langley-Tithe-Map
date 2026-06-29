@@ -207,6 +207,17 @@ Promise.all([
     console.error(e);
   });
 
+// Re-fetch overrides when returning to this tab, so edits made in edit.html appear without a
+// full page reload (important for newly added suffix plots that only exist in overrides).
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  fetch("/api/overrides").then((r) => r.ok ? r.json() : {}).catch(() => ({})).then((overrides) => {
+    applyOverrides(overrides);
+    rebuildDots();
+    render(document.getElementById("search").value || "");
+  });
+});
+
 // Toggle: show every located plot as a dot, so coverage (and gaps) are visible at a glance.
 document.getElementById("toggleDots").addEventListener("change", (e) => {
   if (e.target.checked) dotLayer.addTo(map);

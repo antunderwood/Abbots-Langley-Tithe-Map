@@ -133,20 +133,23 @@
   async function saveEdit() {
     if (!editNo || !editing) return;
     const { lat, lng } = editing.getLatLng();
-    await post({ number: editNo, lon: +lng.toFixed(6), lat: +lat.toFixed(6) });
+    const r = await post({ number: editNo, lon: +lng.toFixed(6), lat: +lat.toFixed(6) });
+    if (!r) return; // post failed (wrong password, network error)
     pos[editNo] = [lat, lng]; overrides[editNo] = { lon: lng, lat }; drawDot(editNo);
     toast(`Saved ${editNo}`); clearEdit();
   }
   async function delEdit() {
     if (!editNo) return;
     if (!confirm(`Delete plot ${editNo} from the map?`)) return;
-    await post({ number: editNo, deleted: true });
+    const r = await post({ number: editNo, deleted: true });
+    if (!r) return;
     overrides[editNo] = { deleted: true }; delete pos[editNo]; drawDot(editNo);
     toast(`Deleted ${editNo}`); clearEdit();
   }
   async function revertEdit() {
     if (!editNo) return;
-    await post({ number: editNo, revert: true });
+    const r = await post({ number: editNo, revert: true });
+    if (!r) return;
     delete overrides[editNo];
     if (base[editNo]) pos[editNo] = base[editNo]; else delete pos[editNo];
     drawDot(editNo); toast(`Reverted ${editNo}`); clearEdit();
