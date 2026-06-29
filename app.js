@@ -151,13 +151,30 @@ results.addEventListener("click", (e) => {
 });
 
 const dotLayer = L.layerGroup();
+const dotMarkers = {}; // plot no -> circleMarker, so map click can reference them
 
-// Rebuild the coverage-dot layer from the current `locations` (so it reflects live edits too).
+const DOT_STYLE = { radius: 8, color: "#37496b", weight: 1.5, fillOpacity: 0.7 };
+
 function rebuildDots() {
   dotLayer.clearLayers();
+  Object.keys(dotMarkers).forEach((k) => delete dotMarkers[k]);
   for (const [no, ll] of Object.entries(locations)) {
-    L.circleMarker(ll, { radius: 3, color: "#37496b", weight: 1, fillOpacity: 0.7 })
-      .bindTooltip(no).addTo(dotLayer);
+    const m = L.circleMarker(ll, DOT_STYLE)
+      .bindTooltip(no, { direction: "top", offset: [0, -8] })
+      .addTo(dotLayer);
+    m.on("click", (e) => {
+      L.DomEvent.stopPropagation(e);
+      m.setStyle({ opacity: 0, fillOpacity: 0 });
+      m.unbindTooltip();
+      m.bindPopup(popupHtml(no, plots[no]), { offset: [0, -8], autoPan: false })
+        .openPopup()
+        .once("popupclose", () => {
+          m.setStyle(DOT_STYLE);
+          m.unbindPopup();
+          m.bindTooltip(no, { direction: "top", offset: [0, -8] });
+        });
+    });
+    dotMarkers[no] = m;
   }
 }
 
@@ -211,7 +228,7 @@ document.getElementById("toggleDots").addEventListener("change", (e) => {
   else dotLayer.remove();
 });
 
-// Click the map to highlight the nearest located plot within 20 px.
+// Click the map to open the nearest located plot's popup within 20 px.
 map.on("click", (e) => {
   const click = map.latLngToContainerPoint(e.latlng);
   let best = null, bestDist = 20;
@@ -220,7 +237,7 @@ map.on("click", (e) => {
     const d = Math.hypot(click.x - pt.x, click.y - pt.y);
     if (d < bestDist) { bestDist = d; best = no; }
   }
-  if (best) locate(best, map.getZoom());
+  if (best && dotMarkers[best]) dotMarkers[best].fire("click");
 });
 
 document.getElementById("search").addEventListener("input", (e) => {
