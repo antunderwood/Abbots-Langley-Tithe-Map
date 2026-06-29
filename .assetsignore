@@ -1,0 +1,15 @@
+# Files NOT to publish as static assets on Cloudflare Pages. The deployed site needs only the
+# viewer (index.html, app.js, style.css), the editor (edit.html), the data the browser fetches
+# (data/plots.json, data/plot_points.geojson, data/plot_polygons.geojson), tithe.pmtiles, and the
+# functions/ (handled separately as Pages Functions, not static assets).
+#
+# Everything below is either source material, local-only tooling, or docs, and must not be served.
+source_images/
+scripts/
+data/review/
+review.html
+assist.html
+resolve.html
+wrangler.toml
+.gitignore
+*.md
