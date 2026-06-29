@@ -50,6 +50,16 @@ menuBtn.addEventListener("click", () => {
 });
 document.getElementById("scrim").addEventListener("click", closeDrawer);
 
+// Dismissible preview notice, remembered so reviewers aren't nagged on every visit.
+const previewNote = document.getElementById("preview-note");
+if (previewNote) {
+  try { if (localStorage.getItem("previewDismissed")) previewNote.classList.add("hidden"); } catch (e) {}
+  document.getElementById("preview-close").addEventListener("click", () => {
+    previewNote.classList.add("hidden");
+    try { localStorage.setItem("previewDismissed", "1"); } catch (e) {}
+  });
+}
+
 // --- Plot records ----------------------------------------------------------
 const results = document.getElementById("results");
 const countEl = document.getElementById("count");
