@@ -6,7 +6,7 @@
 source_images/*
 !source_images/IR30-15-1_*_Abbotts_Langley_Herts.jpg
 !source_images/*.points
-!source_images/*.aux.xml
+# .aux.xml sidecars are regenerable GDAL stats; don't track them
 
 # Large / regenerable build artifacts (tithe.pmtiles IS committed here for the private repo)
 *.tif
