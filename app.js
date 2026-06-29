@@ -226,6 +226,7 @@ document.getElementById("toggleDots").addEventListener("change", (e) => {
 });
 
 // Click the map to open the nearest located plot's popup within 20 px.
+// Uses a freestanding popup so it works whether or not the dots layer is visible.
 map.on("click", (e) => {
   const click = map.latLngToContainerPoint(e.latlng);
   let best = null, bestDist = 20;
@@ -234,7 +235,12 @@ map.on("click", (e) => {
     const d = Math.hypot(click.x - pt.x, click.y - pt.y);
     if (d < bestDist) { bestDist = d; best = no; }
   }
-  if (best && dotMarkers[best]) dotMarkers[best].fire("click");
+  if (best) {
+    L.popup({ offset: [0, -8], autoPan: false })
+      .setLatLng(locations[best])
+      .setContent(popupHtml(best, plots[best]))
+      .openOn(map);
+  }
 });
 
 document.getElementById("search").addEventListener("input", (e) => {
