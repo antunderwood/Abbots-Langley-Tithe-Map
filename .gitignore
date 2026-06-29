@@ -22,6 +22,9 @@ data/review/candidates.json
 data/review/recovered.json
 data/review/confirmed.backup.json
 
+# Local secrets (wrangler dev env vars, never commit)
+.dev.vars
+
 # Transient
 *.gpkg-shm
 *.gpkg-wal

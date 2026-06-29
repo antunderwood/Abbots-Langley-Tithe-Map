@@ -65,8 +65,10 @@ export default {
       return json((await env.OVERRIDES.get(KEY)) || "{}");
     }
     if (request.method === "POST") {
-      if (!request.headers.get("Cf-Access-Jwt-Assertion")) {
-        return new Response("Unauthorized (must go through Cloudflare Access)", { status: 401 });
+      // If EDIT_KEY is set (via `wrangler secret put EDIT_KEY`), require it as X-Edit-Key header.
+      // Without EDIT_KEY set (local dev), all POSTs are accepted.
+      if (env.EDIT_KEY && request.headers.get("X-Edit-Key") !== env.EDIT_KEY) {
+        return new Response("Unauthorized", { status: 401 });
       }
       let edit;
       try {
