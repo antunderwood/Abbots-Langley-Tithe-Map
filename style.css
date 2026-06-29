@@ -105,3 +105,15 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 8px rg
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* --- Preview notice (private pre-publication preview for ALLHS) --- */
+#preview-note {
+  position: absolute; z-index: 1000; top: 12px; left: 50%; transform: translateX(-50%);
+  max-width: min(92vw, 600px); padding: 7px 14px; border-radius: 18px; text-align: center;
+  background: var(--surface); color: var(--on-surface-var); border: 1px solid var(--outline);
+  box-shadow: var(--shadow-2); font-size: 12px; line-height: 1.4; }
+#preview-note strong { color: var(--madder); text-transform: uppercase; letter-spacing: .4px;
+  font-weight: 600; margin-right: 5px; }
+/* centre over the map (not the permanent drawer) on wide screens; clear the menu button on mobile */
+@media (min-width: 900px) { #preview-note { left: calc(50% + var(--drawer-w) / 2); } }
+@media (max-width: 899px) { #preview-note { top: 74px; } }
