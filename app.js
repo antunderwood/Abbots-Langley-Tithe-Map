@@ -126,11 +126,14 @@ function locate(no) {
   highlight.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false, offset: [0, -6] }).openPopup();
 }
 
+function naturalKey(k) { return k.replace(/(\d+)/g, (n) => n.padStart(8, "0")); }
+
 function render(filter) {
   const f = filter.trim().toLowerCase();
   const frag = document.createDocumentFragment();
   let shown = 0;
-  for (const [no, p] of Object.entries(plots)) {
+  const sorted = Object.entries(plots).sort((a, b) => naturalKey(a[0]).localeCompare(naturalKey(b[0])));
+  for (const [no, p] of sorted) {
     const use = landUse(p.use);
     const hay = `${no} ${p.owner} ${p.occupier} ${p.name} ${p.use} ${use}`.toLowerCase();
     if (f && !hay.includes(f)) continue;
