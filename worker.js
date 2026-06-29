@@ -17,9 +17,46 @@ function json(body) {
   });
 }
 
+// Workers Static Assets returns 200 (the whole file) for a Range request, but PMTiles needs real
+// 206 partial responses to read tithe.pmtiles. So we serve .pmtiles ourselves: fetch the full asset
+// once per isolate and slice the requested byte range. 12 MB in memory is well within limits.
+const _assetCache = {};
+async function fullAsset(env, url) {
+  if (!_assetCache[url.pathname]) {
+    const r = await env.ASSETS.fetch(new Request(url.origin + url.pathname));
+    _assetCache[url.pathname] = await r.arrayBuffer();
+  }
+  return _assetCache[url.pathname];
+}
+
+async function servePmtiles(request, env, url) {
+  const buf = await fullAsset(env, url);
+  const size = buf.byteLength;
+  const base = { "content-type": "application/octet-stream", "accept-ranges": "bytes",
+                 "cache-control": "public, max-age=86400" };
+  const range = request.headers.get("Range");
+  const m = range && /bytes=(\d+)-(\d*)/.exec(range);
+  if (!m) {
+    return new Response(buf, { headers: { ...base, "content-length": String(size) } });
+  }
+  const start = Number(m[1]);
+  const end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  if (start > end || start >= size) {
+    return new Response("Range Not Satisfiable", { status: 416, headers: { "content-range": `bytes */${size}` } });
+  }
+  const slice = buf.slice(start, end + 1);
+  return new Response(slice, {
+    status: 206,
+    headers: { ...base, "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(slice.byteLength) },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.endsWith(".pmtiles")) {
+      return servePmtiles(request, env, url);
+    }
     if (url.pathname !== "/api/overrides") {
       return env.ASSETS.fetch(request); // static site
     }
