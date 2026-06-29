@@ -65,9 +65,7 @@ const results = document.getElementById("results");
 const countEl = document.getElementById("count");
 let plots = {};
 let locations = {}; // plot number -> [lat, lng], from data/plot_points.geojson (partial coverage)
-let polygons = {};  // plot number -> GeoJSON ring [[lon,lat],...], from data/plot_polygons.geojson
 let highlight = null; // the single moving point highlight
-let highlightPoly = null; // the single field-fill highlight
 let lastLocated = null; // plot number most recently clicked, for restoring scroll on search clear
 
 function acreage(p) {
@@ -105,20 +103,9 @@ function popupHtml(no, p) {
     (p.remarks ? `<br><i>${p.remarks}</i>` : "");
 }
 
-// Pan to a plot and highlight it: fill the field polygon if we have one, else a point marker.
+// Pan to a plot and highlight it with a point marker.
 function locate(no) {
-  if (highlightPoly) { highlightPoly.remove(); highlightPoly = null; }
   if (highlight) { highlight.remove(); highlight = null; }
-
-  const ring = polygons[no];
-  if (ring) {
-    const latlngs = ring.map(([lon, lat]) => [lat, lon]);
-    highlightPoly = L.polygon(latlngs, { color: "#d62828", weight: 2, fillColor: "#d62828", fillOpacity: 0.3 });
-    highlightPoly.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false });
-    map.fitBounds(highlightPoly.getBounds(), { maxZoom: 18, padding: [40, 40] });
-    highlightPoly.openPopup();
-    return;
-  }
   const ll = locations[no];
   if (!ll) return;
   map.setView(ll, 17);
@@ -139,7 +126,7 @@ function render(filter) {
     if (f && !hay.includes(f)) continue;
     shown++;
     const li = document.createElement("li");
-    const hasLoc = locations[no] || polygons[no];
+    const hasLoc = !!locations[no];
     const here = hasLoc ? ' <span class="pin" title="Show on map">&#128205;</span>' : "";
     if (hasLoc) {
       li.className = "locatable";
@@ -179,8 +166,8 @@ function rebuildDots() {
 // is removed. This is what the password-protected editor writes; see edit.html + functions/.
 function applyOverrides(overrides) {
   for (const [no, o] of Object.entries(overrides || {})) {
-    if (o && o.deleted) { delete locations[no]; delete polygons[no]; }
-    else if (o && typeof o.lat === "number") { locations[no] = [o.lat, o.lon]; delete polygons[no]; }
+    if (o && o.deleted) { delete locations[no]; }
+    else if (o && typeof o.lat === "number") { locations[no] = [o.lat, o.lon]; }
   }
 }
 

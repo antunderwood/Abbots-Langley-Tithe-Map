@@ -16,6 +16,9 @@ award.xls
 award.csv
 *.csv
 
+# Polygon GeoJSON: regenerable from extract_polygons.py when needed
+data/plot_polygons.geojson
+
 # Review/recovery working files: regenerable from confirmed.json + the scans
 data/review/crops/
 data/review/candidates.json
