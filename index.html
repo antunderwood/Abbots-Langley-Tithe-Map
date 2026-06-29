@@ -3,36 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Abbots Langley Tithe Map (c.1839) overlaid on a modern map</title>
+  <title>Abbots Langley Tithe Map (1839) over today</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="map"></div>
 
-  <div id="panel">
-    <header>
-      <h1>Abbots Langley Tithe Map</h1>
-      <p class="sub">19th-century tithe map under a modern map. Fade the modern layer to see beneath.</p>
+  <button id="menuBtn" class="fab" aria-label="Open panel" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <div id="scrim"></div>
+
+  <aside id="drawer" aria-label="Map controls and plot search">
+    <header class="drawer-head">
+      <h1>Abbots Langley</h1>
+      <p class="sub">Tithe map of 1839, laid over today</p>
     </header>
 
-    <div class="control">
-      <label><input type="checkbox" id="toggleModern" checked> Show modern map</label>
-    </div>
-    <div class="control">
-      <label for="opacity">Modern map opacity</label>
-      <input type="range" id="opacity" min="0" max="100" value="60">
-    </div>
+    <section class="card">
+      <div class="blend">
+        <div class="blend-label">Map blend</div>
+        <input type="range" id="opacity" min="0" max="100" value="85"
+               aria-label="Blend between today's map and the 1839 tithe map">
+        <div class="ends"><span>Today</span><span>1839</span></div>
+      </div>
+      <label class="switch-row">
+        <span>Show 1839 map</span>
+        <span class="switch"><input type="checkbox" id="toggleTithe" checked><span class="track"></span></span>
+      </label>
+      <label class="switch-row">
+        <span>Show located plots</span>
+        <span class="switch"><input type="checkbox" id="toggleDots"><span class="track"></span></span>
+      </label>
+    </section>
 
-    <div class="control">
-      <input type="search" id="search" placeholder="Search plot no, owner, field name, land use">
-      <p class="count"><span id="count">0</span> plots</p>
+    <div class="search">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="search" id="search" placeholder="Search plot no, owner, field">
     </div>
+    <p class="count"><span id="count">0</span> plots &middot; click a result with a marker to find it</p>
 
     <ul id="results"></ul>
-  </div>
-
-  <button id="panelToggle" aria-label="Toggle panel">&#9776;</button>
+  </aside>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>

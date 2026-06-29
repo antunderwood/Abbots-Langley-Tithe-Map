@@ -1,13 +1,27 @@
-# Source scans + tile cache: large, and © ALLHS (do not commit / re-host without permission)
-source_images/
+# --- Source scans & georeferencing ---
+# PRIVATE repo: the 7 stitched sheet scans ARE committed (© ALLHS; do NOT make this repo public or
+# re-host them without ALLHS permission). Everything else under source_images is large/regenerable:
+# the Zoomify tile pyramids, *_crop.tif / *_modified.tif intermediates, debug crops, and the VRT.
+# Ignore the whole folder, then re-include the stitched sheets + the georeferencing point files.
+source_images/*
+!source_images/IR30-15-1_*_Abbotts_Langley_Herts.jpg
+!source_images/*.points
+!source_images/*.aux.xml
+
+# Large / regenerable build artifacts (tithe.pmtiles IS committed here for the private repo)
+*.tif
+*.mbtiles
 award.xls
 *.xls
 
-# Georeferencing output (built locally, can be large)
-tithe.pmtiles
-*.tif
-*.mbtiles
+# Review/recovery working files: regenerable from confirmed.json + the scans
+data/review/crops/
+data/review/candidates.json
+data/review/recovered.json
+data/review/confirmed.backup.json
 
-# QGIS/SQLite transient sidecars
+# Transient
 *.gpkg-shm
 *.gpkg-wal
+scratch_*
+__pycache__/

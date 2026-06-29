@@ -9,13 +9,61 @@ supports ranges natively, so this is only needed for local testing.
 Usage: python3 scripts/serve.py [port]   # default 8000
 """
 import http.server
+import json
 import os
 import re
 import sys
 
+# Local stand-in for the Cloudflare KV-backed /api/overrides Function (functions/api/overrides.js),
+# so the editor and viewer work offline in dev. No auth locally; Cloudflare Access guards production.
+OVERRIDES = "data/review/overrides.json"
+
 
 class RangeHandler(http.server.SimpleHTTPRequestHandler):
     _send_len = None  # bytes still to send for a range response; None = send whole file
+
+    def do_GET(self):
+        if self.path.split("?")[0] == "/api/overrides":
+            body = open(OVERRIDES, "rb").read() if os.path.exists(OVERRIDES) else b"{}"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        return super().do_GET()
+
+    def do_POST(self):
+        if self.path != "/api/overrides":
+            self.send_error(404)
+            return
+        n = int(self.headers.get("Content-Length", 0))
+        try:
+            edit = json.loads(self.rfile.read(n) or b"{}")
+        except ValueError:
+            self.send_error(400)
+            return
+        no = str(edit.get("number", "")).strip()
+        if not no:
+            self.send_error(400)
+            return
+        ov = json.load(open(OVERRIDES)) if os.path.exists(OVERRIDES) else {}
+        if edit.get("deleted"):
+            ov[no] = {"deleted": True}
+        elif isinstance(edit.get("lat"), (int, float)) and isinstance(edit.get("lon"), (int, float)):
+            ov[no] = {"lon": edit["lon"], "lat": edit["lat"]}
+        elif edit.get("revert"):
+            ov.pop(no, None)
+        else:
+            self.send_error(400)
+            return
+        os.makedirs(os.path.dirname(OVERRIDES), exist_ok=True)
+        json.dump(ov, open(OVERRIDES, "w"))
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"ok": True, "count": len(ov)}).encode())
 
     def send_head(self):
         rng = self.headers.get("Range")

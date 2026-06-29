@@ -40,38 +40,55 @@ def natkey(s):
 MIN_CONF = {1: 75, 2: 55}
 
 
+# Map numbers sit at field-aligned angles, so OCR each variant at a few rotations and map the
+# detections back. Rotation (not contrast) is what recovers most missed numbers.
+ANGLES = (0, -10, -6, -3, 3, 6, 10)
+
+
+def _ocr_image(img, scale, M=None, psms=(11, 12)):
+    """OCR one image; yield (number, conf, col, row) in original-scan coords. M maps this
+    (possibly rotated) image's coords back to the unrotated variant (cv2 affine, dst->src)."""
+    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+        cv2.imwrite(f.name, img)
+        for psm in psms:
+            out = subprocess.run(
+                ["tesseract", f.name, "stdout", "--psm", str(psm),
+                 "-c", "tessedit_char_whitelist=0123456789", "tsv"],
+                capture_output=True, text=True).stdout
+            for r in csv.DictReader(io.StringIO(out), delimiter="\t"):
+                t = (r.get("text") or "").strip()
+                if t not in KNOWN:
+                    continue
+                try:
+                    c = float(r.get("conf", -1))
+                except ValueError:
+                    continue
+                if c < MIN_CONF.get(len(t), 30):
+                    continue
+                col = int(r["left"]) + int(r["width"]) / 2
+                row = int(r["top"]) + int(r["height"]) / 2
+                if M is not None:  # back to unrotated variant coords (M is the warpAffine matrix)
+                    col, row = (M @ np.array([col, row, 1.0]))[:2]
+                yield t, c, col / scale, row / scale
+
+
 def ocr_detections(scan):
     """List of (number, conf, col, row) validated against KNOWN, from several OCR passes."""
     gray = cv2.cvtColor(cv2.imread(scan), cv2.COLOR_BGR2GRAY)
     up = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    variants = [
-        (1, gray),
-        (2, cv2.adaptiveThreshold(up, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 15)),
-        (2, cv2.threshold(up, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]),
-    ]
+    otsu = cv2.threshold(up, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     dets = []
-    with tempfile.TemporaryDirectory() as td:
-        for i, (scale, vimg) in enumerate(variants):
-            p = os.path.join(td, f"v{i}.png")
-            cv2.imwrite(p, vimg)
-            for psm in (11, 12):
-                out = subprocess.run(
-                    ["tesseract", p, "stdout", "--psm", str(psm),
-                     "-c", "tessedit_char_whitelist=0123456789", "tsv"],
-                    capture_output=True, text=True).stdout
-                for r in csv.DictReader(io.StringIO(out), delimiter="\t"):
-                    t = (r.get("text") or "").strip()
-                    if t not in KNOWN:
-                        continue
-                    try:
-                        c = float(r.get("conf", -1))
-                    except ValueError:
-                        continue
-                    if c < MIN_CONF.get(len(t), 30):
-                        continue
-                    col = (int(r["left"]) + int(r["width"]) / 2) / scale
-                    row = (int(r["top"]) + int(r["height"]) / 2) / scale
-                    dets.append((t, c, col, row))
+    # Upright pass: both variants, both PSMs (the original recall).
+    dets.extend(_ocr_image(gray, 1))
+    dets.extend(_ocr_image(otsu, 2))
+    # Rotated passes: cheaper (non-upscaled grey, single PSM) to recover field-angled numbers.
+    h, w = gray.shape
+    for a in ANGLES:
+        if a == 0:
+            continue
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), a, 1.0)
+        rot = cv2.warpAffine(gray, M, (w, h), borderValue=255)
+        dets.extend(_ocr_image(rot, 1, cv2.invertAffineTransform(M), psms=(11,)))
     return dets
 
 

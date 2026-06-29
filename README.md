@@ -114,6 +114,27 @@ known plot number, and converts pixel positions to lon/lat via each sheet's `.po
 `data/plot_points.geojson` and `data/plots_missing.txt` (numbers not auto-located). Coverage is
 partial (faint/tiny numbers are missed); a few pins may be misplaced where a digit was misread.
 
+### Review and correct (confirmation app)
+
+OCR mislocates short (1-2 digit) numbers, so reads are split into auto-accepted and to-review:
+
+```sh
+micromamba run -n abbots_langley_map python scripts/prepare_review.py   # classify + crop
+python3 scripts/review_server.py 8001                                   # then open http://localhost:8001/review.html
+```
+
+`prepare_review.py` auto-accepts confident 3+ digit matches and queues the rest (short, low
+confidence) with a cropped thumbnail. The review app has two tabs:
+- **Review queue:** each uncertain label shows its crop, the OCR guess (editable), and its record.
+  Enter confirms, edit-then-Enter corrects, Esc skips a non-plot. Saves to `confirmed.json` as you go.
+- **Add on map:** click a field that has no seed and type its number, to recover plots OCR missed.
+
+Then rebuild points + polygons from the confirmed seeds:
+
+```sh
+micromamba run -n abbots_langley_map python scripts/extract_polygons.py
+```
+
 ### Fill the gaps by hand in QGIS
 
 1. Load `data/plot_points.geojson` and your georeferenced sheets in QGIS.
@@ -124,9 +145,60 @@ partial (faint/tiny numbers are missed); a few pins may be misplaced where a dig
 
 (Tip: to also correct a misplaced pin, use the Vertex Tool to drag it onto the right plot.)
 
+## Plot field polygons (search fills the field)
+
+Each plot number sits inside its field, so `extract_polygons.py` seeds a **watershed** with the
+located points: it grows one bounded region per seed, which splits adjacent fields (e.g. 62 vs 69)
+and gives every seed a polygon. It writes **both** `plot_points.geojson` and `plot_polygons.geojson`
+from the same seeds, using `data/review/confirmed.json` when present (post-review) or OCR otherwise.
+
+```sh
+micromamba run -n abbots_langley_map python scripts/extract_polygons.py    # all sheets
+```
+
+A wrong seed still gives a wrong field, so the review app above is what fixes mislocated numbers.
+Oversized regions (sparse seeds) are skipped as polygons. Tidy shapes by hand in QGIS if needed,
+both files are editable GeoJSON with a `number` field; the viewer reads them directly.
+
+## Editing plot positions (password-protected, live)
+
+Misplaced plots can be corrected on the deployed site through a gated editor, without redeploying.
+
+- **`edit.html`** is the editor: click a plot to select it, drag the marker to the right spot, Save.
+  It can also Add, Delete, and Revert plots. Each change is saved instantly.
+- **`functions/api/overrides.js`** is a Cloudflare Pages Function: `GET /api/overrides` returns the
+  edit layer (the public viewer merges it over the baked-in data on load), `POST /api/overrides`
+  applies one edit and persists it to the **OVERRIDES** KV namespace.
+- The viewer (`app.js`) merges overrides live: a moved/added plot uses the new position (its polygon
+  drops until the next offline rebuild), a deleted plot disappears.
+
+### Cloudflare setup (one-time)
+
+1. `npx wrangler kv namespace create OVERRIDES`, paste the printed id into `wrangler.toml`.
+2. Deploy: connect the repo in the Pages dashboard, or `npx wrangler pages deploy .`.
+3. In the dashboard, add a **Cloudflare Access** application covering `/edit.html` and
+   `/api/overrides`, restricted to your editor email(s). This is what protects the edit URL; the
+   Function also rejects any write that did not arrive through Access.
+
+### Local editing (no Cloudflare)
+
+`scripts/serve.py` implements the same `/api/overrides` endpoint against
+`data/review/overrides.json` (no auth locally). Run it and open `http://localhost:8000/edit.html`.
+
+### Folding edits back into the polygons
+
+Live edits move points only. To refresh polygons from accumulated edits:
+
+```sh
+npx wrangler kv key get --binding=OVERRIDES overrides > data/review/overrides.json   # prod only
+micromamba run -n abbots_langley_map python scripts/apply_overrides.py               # bake into confirmed.json
+micromamba run -n abbots_langley_map python scripts/extract_polygons.py              # rebuild polygons
+```
+
 ## Roadmap
 
 - **Phase 1 (done):** viewer + overlay + opacity + searchable records.
-- **Phase 2 (done):** clickable/searchable point per plot via OCR + manual fill (above).
-- **Phase 3 (R&D):** automatic polygonisation of plot boundaries, spatial-joined to the points.
-  Semi-automatic with manual cleanup; not turnkey.
+- **Phase 2 (done):** clickable/searchable point per plot via OCR + manual fill.
+- **Phase 3 (done, partial):** reconstructed field polygons via boundary extraction + seed join;
+  search fills the field. Manual cleanup in QGIS for merged/missed fields.
+- **Editing (done):** password-protected live editor (Cloudflare Access + Pages Function + KV).

@@ -1,0 +1,18 @@
+# Cloudflare Pages config. Static assets are served from the repo root; the Pages Function in
+# functions/api/overrides.js handles the live edit layer and needs the OVERRIDES KV binding below.
+#
+# One-time setup:
+#   1. npx wrangler kv namespace create OVERRIDES        # prints an id; paste it below
+#   2. (optional, for `wrangler pages dev` local KV)  npx wrangler kv namespace create OVERRIDES --preview
+#   3. Deploy via the Pages dashboard (connect the repo) or:  npx wrangler pages deploy .
+#   4. In the dashboard, add a Cloudflare Access application covering  /edit.html  and  /api/overrides
+#      restricted to your editor email(s). That is what password/identity-protects the edit URL.
+
+name = "abbots-langley-tithe-map"
+pages_build_output_dir = "."
+compatibility_date = "2024-09-01"
+
+[[kv_namespaces]]
+binding = "OVERRIDES"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+# preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"   # only needed for `wrangler pages dev`

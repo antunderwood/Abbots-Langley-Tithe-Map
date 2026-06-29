@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit plot positions</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary:#37496b; --madder:#b0413e; --surface:#fcfbf9; --s2:#f3f1ea; --on:#1c1b19; --var:#4b483f; --outline:#cac6bd; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; height:100%; font-family:Roboto,system-ui,sans-serif; color:var(--on); }
+    #wrap { display:flex; height:100%; }
+    #panel { width:320px; flex:none; background:var(--surface); border-right:1px solid var(--outline); display:flex; flex-direction:column; padding:18px; gap:14px; overflow:auto; }
+    #map { flex:1; }
+    h1 { font-family:Fraunces,serif; font-size:19px; margin:0; color:var(--primary); }
+    .edit-badge { display:inline-block; background:var(--madder); color:#fff; font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px; letter-spacing:.4px; }
+    .jump, .btns { display:flex; gap:8px; }
+    .jump input { font:inherit; width:100%; padding:8px 10px; border:2px solid var(--outline); border-radius:10px; }
+    button { font:inherit; font-weight:500; padding:9px 12px; border:none; border-radius:20px; cursor:pointer; }
+    .prim { background:var(--primary); color:#fff; }
+    .ghost { background:transparent; color:var(--var); box-shadow:inset 0 0 0 1px var(--outline); }
+    .danger { background:var(--madder); color:#fff; }
+    .sel { background:var(--s2); border-radius:16px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); min-height:60px; }
+    .sel .num { font-family:Fraunces,serif; font-size:34px; font-weight:600; color:var(--primary); line-height:1; }
+    .sel .rec { font-size:13px; color:var(--var); line-height:1.5; margin:6px 0 12px; }
+    .sel.none { color:var(--var); font-size:13px; }
+    .hint { font-size:12.5px; color:var(--var); line-height:1.45; }
+    .slider { font-size:12px; color:var(--var); }
+    .slider input { width:100%; }
+    .saved { position:fixed; bottom:16px; left:336px; background:var(--on); color:#fff; padding:8px 14px; border-radius:18px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+    .saved.show { opacity:.92; }
+    .lbl { background:#fff; border:1px solid var(--outline); border-radius:8px; padding:0 5px; font-size:12px; font-weight:600; color:var(--madder); }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="panel">
+      <h1>Edit plot positions <span class="edit-badge">EDIT</span></h1>
+      <div class="hint">Changes save instantly and go live on the public map. Click a plot to select it,
+        drag the marker to the correct spot, then Save. Or add / delete plots.</div>
+      <div class="jump">
+        <input id="jumpno" placeholder="find plot no" inputmode="numeric">
+        <button class="prim" id="jumpgo">Find</button>
+      </div>
+      <div class="btns"><button class="ghost" id="addbtn">Add plot</button></div>
+      <div class="sel none" id="sel">No plot selected.</div>
+      <div class="slider">1839 map opacity <input type="range" id="op" min="0" max="100" value="55"></div>
+    </div>
+    <div id="map"></div>
+  </div>
+  <div id="toast" class="saved">Saved</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script>
+  const $ = (id) => document.getElementById(id);
+  let plots = {}, base = {}, overrides = {}, pos = {};   // *-> [lat,lng]; overrides keyed by plot no
+  const markers = {};        // plot no -> circleMarker on the canvas layer
+  let editing = null, editNo = null, addMode = false, tithe = null;
+
+  const toast = (m) => { const t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1300); };
+  async function post(edit) {
+    const r = await fetch("/api/overrides", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(edit)});
+    if (!r.ok) { toast("Save failed: " + r.status); throw new Error(r.status); }
+    return r.json();
+  }
+
+  const map = L.map("map", { preferCanvas: true }).setView([51.7045,-0.4146], 15);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"&copy; OpenStreetMap"}).addTo(map);
+  const dots = L.layerGroup().addTo(map);
+
+  function drawDot(no) {
+    if (markers[no]) { markers[no].remove(); delete markers[no]; }
+    if (!pos[no]) return;
+    const m = L.circleMarker(pos[no], {radius:4, color:"#37496b", weight:1, fillOpacity:.7})
+      .bindTooltip(no).addTo(dots);
+    m.on("click", () => select(no));
+    markers[no] = m;
+  }
+
+  function panel() {
+    const s = $("sel");
+    if (!editNo) { s.className = "sel none"; s.innerHTML = "No plot selected."; return; }
+    const p = plots[editNo] || {};
+    s.className = "sel";
+    s.innerHTML = `<div class="num">${editNo}</div>` +
+      `<div class="rec">${p.name?`<b>${p.name}</b><br>`:""}${p.owner?`Owner: ${p.owner}<br>`:""}${p.occupier?`Occupier: ${p.occupier}`:""}</div>` +
+      `<div class="btns">` +
+        `<button class="prim" id="save">Save position</button>` +
+        `<button class="danger" id="del">Delete</button>` +
+        `<button class="ghost" id="revert">Revert</button>` +
+        `<button class="ghost" id="cancel">Cancel</button>` +
+      `</div>`;
+    $("save").onclick = saveEdit; $("del").onclick = delEdit; $("revert").onclick = revertEdit; $("cancel").onclick = clearEdit;
+  }
+
+  function clearEdit() { if (editing) { editing.remove(); editing = null; } editNo = null; panel(); }
+
+  function select(no) {
+    clearEdit();
+    editNo = no;
+    const ll = pos[no] || map.getCenter();
+    editing = L.marker(ll, { draggable: true }).addTo(map);
+    map.setView(ll, Math.max(map.getZoom(), 18));
+    panel();
+  }
+
+  async function saveEdit() {
+    if (!editNo || !editing) return;
+    const { lat, lng } = editing.getLatLng();
+    await post({ number: editNo, lon: +lng.toFixed(6), lat: +lat.toFixed(6) });
+    pos[editNo] = [lat, lng]; overrides[editNo] = { lon: lng, lat }; drawDot(editNo);
+    toast(`Saved ${editNo}`); clearEdit();
+  }
+  async function delEdit() {
+    if (!editNo) return;
+    if (!confirm(`Delete plot ${editNo} from the map?`)) return;
+    await post({ number: editNo, deleted: true });
+    overrides[editNo] = { deleted: true }; delete pos[editNo]; drawDot(editNo);
+    toast(`Deleted ${editNo}`); clearEdit();
+  }
+  async function revertEdit() {
+    if (!editNo) return;
+    await post({ number: editNo, revert: true });
+    delete overrides[editNo];
+    if (base[editNo]) pos[editNo] = base[editNo]; else delete pos[editNo];
+    drawDot(editNo); toast(`Reverted ${editNo}`); clearEdit();
+  }
+
+  $("addbtn").onclick = () => { addMode = true; toast("Click the map where the plot is"); };
+  map.on("click", (e) => {
+    if (!addMode) return;
+    addMode = false;
+    const no = (prompt("Plot number to add here?") || "").trim();
+    if (!no) return;
+    if (!plots[no]) { if (!confirm(`${no} is not in the tithe award. Add anyway?`)) return; }
+    pos[no] = [e.latlng.lat, e.latlng.lng]; drawDot(no); select(no);
+  });
+
+  $("jumpgo").onclick = () => { const v = $("jumpno").value.trim(); if (pos[v]) select(v); else toast(plots[v] ? `${v} has no position yet, use Add` : "Unknown plot"); };
+  $("jumpno").addEventListener("keydown", e => { if (e.key === "Enter") $("jumpgo").click(); });
+  $("op").oninput = (e) => tithe && tithe.setOpacity(e.target.value/100);
+
+  Promise.all([
+    fetch("data/plots.json").then(r=>r.json()),
+    fetch("data/plot_points.geojson").then(r=>r.ok?r.json():{features:[]}).catch(()=>({features:[]})),
+    fetch("/api/overrides").then(r=>r.ok?r.json():{}).catch(()=>({})),
+  ]).then(([pl, geo, ov]) => {
+    plots = pl; overrides = ov || {};
+    for (const f of geo.features) { const [lo,la]=f.geometry.coordinates; base[f.properties.number]=[la,lo]; }
+    pos = Object.fromEntries(Object.entries(base));
+    for (const [no,o] of Object.entries(overrides)) {
+      if (o.deleted) delete pos[no];
+      else if (typeof o.lat === "number") pos[no] = [o.lat, o.lon];
+    }
+    for (const no of Object.keys(pos)) drawDot(no);
+    try { const a=new pmtiles.PMTiles("tithe.pmtiles"); tithe=pmtiles.leafletRasterLayer(a,{maxNativeZoom:17,opacity:.55}); tithe.on("tileerror",()=>{}); tithe.addTo(map); } catch(e){}
+  }).catch(()=>toast("Could not load data"));
+  </script>
+</body>
+</html>

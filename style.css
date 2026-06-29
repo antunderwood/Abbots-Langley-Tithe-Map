@@ -1,41 +1,107 @@
+/* Abbots Langley tithe viewer - Material 3, grounded in the map's archival palette. */
+:root {
+  --primary: #37496b;            /* ledger-ink slate-indigo */
+  --on-primary: #ffffff;
+  --primary-container: #dde2f3;
+  --on-primary-container: #1a2746;
+  --surface: #fcfbf9;            /* barely-warm paper white */
+  --surface-2: #f3f1ea;          /* elevated tonal surface */
+  --on-surface: #1c1b19;
+  --on-surface-var: #4b483f;     /* secondary text */
+  --outline: #cac6bd;
+  --madder: #b0413e;             /* the map's building red, used for selection */
+  --shadow-1: 0 1px 3px rgba(28,27,25,.12), 0 1px 2px rgba(28,27,25,.10);
+  --shadow-2: 0 4px 12px rgba(28,27,25,.16), 0 2px 4px rgba(28,27,25,.10);
+  --drawer-w: 360px;
+}
+
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
-#map { position: absolute; inset: 0; }
-/* Leaflet's container defaults to grey (#ddd), which shows through the semi-transparent
-   modern layer wherever the historic map has no data. White reads as clean instead of grey. */
-.leaflet-container { background: #fff; }
+html, body { margin: 0; height: 100%; font-family: Roboto, system-ui, sans-serif;
+  color: var(--on-surface); background: var(--surface); }
+#map { position: absolute; inset: 0; background: var(--surface-2); }
 
-#panel {
-  position: absolute; top: 0; left: 0; bottom: 0; z-index: 1000;
-  width: 320px; max-width: 85vw; padding: 16px; overflow-y: auto;
-  background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,.15);
-  transition: transform .2s ease;
+/* Leaflet controls: lift to Material elevation */
+.leaflet-control-zoom a { border-radius: 8px !important; box-shadow: var(--shadow-1); border: none !important;
+  color: var(--primary) !important; }
+.leaflet-bar { border: none !important; }
+
+/* --- Navigation drawer --- */
+#drawer {
+  position: absolute; z-index: 1000; top: 0; left: 0; bottom: 0; width: var(--drawer-w); max-width: 88vw;
+  display: flex; flex-direction: column; padding: 20px 18px; gap: 14px; overflow-y: auto;
+  background: var(--surface); box-shadow: var(--shadow-2);
 }
-body.panel-hidden #panel { transform: translateX(-100%); }
+.drawer-head h1 { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 30px;
+  line-height: 1.05; margin: 0; letter-spacing: -.5px; color: var(--primary); }
+.drawer-head .sub { margin: 6px 0 0; font-size: 13px; color: var(--on-surface-var); }
 
-#panel h1 { font-size: 18px; margin: 0 0 4px; }
-.sub { margin: 0 0 12px; font-size: 12px; color: #555; }
+/* --- Control card --- */
+.card { background: var(--surface-2); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.blend-label { font-size: 12px; font-weight: 500; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--on-surface-var); margin-bottom: 10px; }
+.ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--on-surface-var); margin-top: 6px; }
+.ends span:last-child { font-family: Fraunces, serif; font-weight: 600; color: var(--primary); }
 
-.control { margin-bottom: 12px; }
-.control label { display: block; font-size: 13px; margin-bottom: 4px; }
-#opacity, #search { width: 100%; }
-#search { padding: 6px 8px; font-size: 14px; }
-.count { margin: 6px 0 0; font-size: 12px; color: #555; }
+/* Material slider */
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px;
+  background: var(--outline); outline: none; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--outline); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px;
+  margin-top: -8px; border-radius: 50%; background: var(--primary); cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(55,73,107,.16); transition: box-shadow .15s; }
+input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 8px rgba(55,73,107,.16); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: none; border-radius: 50%;
+  background: var(--primary); cursor: pointer; }
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 8px rgba(55,73,107,.28); }
 
-#results { list-style: none; margin: 8px 0 0; padding: 0; }
-#results li { padding: 8px 0; border-top: 1px solid #eee; font-size: 13px; }
+/* Material switch */
+.switch-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; cursor: pointer; }
+.switch { position: relative; width: 44px; height: 24px; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch .track { position: absolute; inset: 0; border-radius: 12px; background: var(--outline);
+  transition: background .15s; }
+.switch .track::after { content: ""; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--surface); transition: transform .15s, width .15s; }
+.switch input:checked + .track { background: var(--primary); }
+.switch input:checked + .track::after { transform: translateX(20px); background: var(--on-primary); }
+
+/* --- Search field (Material filled) --- */
+.search { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border-radius: 28px;
+  padding: 0 16px; height: 48px; color: var(--on-surface-var); }
+.search input { border: none; background: none; outline: none; width: 100%; font: inherit; font-size: 15px;
+  color: var(--on-surface); }
+.search:focus-within { box-shadow: inset 0 0 0 2px var(--primary); color: var(--primary); }
+.count { margin: 2px 2px 0; font-size: 12px; color: var(--on-surface-var); }
+
+/* --- Results --- */
+#results { list-style: none; margin: 4px 0 0; padding: 0; }
+#results li { padding: 12px 12px; border-radius: 12px; font-size: 13px; color: var(--on-surface-var); }
+#results li + li { margin-top: 2px; }
 #results li.locatable { cursor: pointer; }
-#results li.locatable:hover { background: #f3f1ea; }
-#results .pin { float: right; }
-#results .no { font-weight: 700; color: #b5651d; }
-#results .name { font-weight: 600; }
-#results .meta { color: #555; font-size: 12px; margin-top: 2px; }
+#results li.locatable:hover { background: var(--surface-2); }
+#results .no { font-family: Fraunces, serif; font-weight: 600; font-size: 16px; color: var(--primary); }
+#results .name { font-weight: 500; color: var(--on-surface); }
+#results .meta { margin-top: 3px; }
 #results .rem { font-style: italic; }
+#results .pin { float: right; filter: grayscale(.2); }
 
-#panelToggle {
-  position: absolute; top: 10px; left: 10px; z-index: 1001;
-  display: none; width: 40px; height: 40px; font-size: 20px;
-  background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;
+/* --- Floating menu button (mobile) + scrim --- */
+.fab { position: absolute; z-index: 1001; top: 16px; left: 16px; width: 48px; height: 48px; display: none;
+  align-items: center; justify-content: center; border: none; border-radius: 16px; cursor: pointer;
+  background: var(--surface); color: var(--primary); box-shadow: var(--shadow-2); }
+#scrim { position: absolute; inset: 0; z-index: 999; background: rgba(28,27,25,.32); opacity: 0; pointer-events: none;
+  transition: opacity .2s; }
+
+/* Map insets to make room for the permanent drawer on wide screens */
+@media (min-width: 900px) { #map { left: var(--drawer-w); } }
+
+/* Below 900px the drawer is modal */
+@media (max-width: 899px) {
+  .fab { display: flex; }
+  #drawer { transform: translateX(-100%); transition: transform .25s ease; }
+  body.drawer-open #drawer { transform: translateX(0); }
+  body.drawer-open #scrim { opacity: 1; pointer-events: auto; }
 }
-body.panel-hidden #panelToggle { display: block; }
-@media (max-width: 640px) { #panelToggle { display: block; } }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

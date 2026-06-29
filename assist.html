@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Place missing plots</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary:#37496b; --madder:#b0413e; --surface:#fcfbf9; --s2:#f3f1ea; --on:#1c1b19; --var:#4b483f; --outline:#cac6bd; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; height:100%; font-family:Roboto,system-ui,sans-serif; color:var(--on); }
+    #wrap { display:flex; height:100%; }
+    #panel { width:340px; flex:none; background:var(--surface); border-right:1px solid var(--outline); display:flex; flex-direction:column; padding:18px; gap:14px; overflow:auto; }
+    #map { flex:1; }
+    h1 { font-family:Fraunces,serif; font-size:19px; margin:0; color:var(--primary); }
+    .prog { font-size:13px; color:var(--var); }
+    .prog b { color:var(--primary); }
+    .now { background:var(--s2); border-radius:16px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .num { font-family:Fraunces,serif; font-size:40px; font-weight:600; color:var(--madder); line-height:1; }
+    .rec { font-size:13px; color:var(--var); line-height:1.5; margin-top:8px; }
+    .rec b { color:var(--on); }
+    .hint { font-size:12.5px; color:var(--var); line-height:1.45; }
+    .hint .k { color:var(--primary); font-weight:500; }
+    .btns { display:flex; gap:8px; flex-wrap:wrap; }
+    button { font:inherit; font-weight:500; padding:9px 12px; border:none; border-radius:20px; cursor:pointer; }
+    .ghost { background:transparent; color:var(--var); box-shadow:inset 0 0 0 1px var(--outline); }
+    .prim { background:var(--primary); color:#fff; }
+    .jump { display:flex; gap:6px; }
+    .jump input { font:inherit; width:100%; padding:8px 10px; border:2px solid var(--outline); border-radius:10px; }
+    .slider { font-size:12px; color:var(--var); }
+    .slider input { width:100%; }
+    .saved { position:fixed; bottom:16px; left:356px; background:var(--on); color:#fff; padding:8px 14px; border-radius:18px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+    .saved.show { opacity:.92; }
+    .pin-lbl { background:#fff; border:1px solid var(--outline); border-radius:8px; padding:0 5px; font-size:12px; font-weight:600; color:var(--primary); }
+    .pin-pred { background:var(--madder); color:#fff; border:none; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="panel">
+      <h1>Place missing plots</h1>
+      <div class="prog"><b id="left">0</b> remaining &middot; <span id="done">0</span> placed this session</div>
+      <div class="now" id="now"></div>
+      <div class="hint">
+        Map centres on where this number should be (between its located neighbours, shown as
+        <span class="k">blue</span> pins; the <span class="k" style="color:var(--madder)">red</span>
+        marker is the guess). Find the real label on the 1839 map and <span class="k">click it</span> to place.
+      </div>
+      <div class="btns">
+        <button class="ghost" id="skip">Skip</button>
+        <button class="ghost" id="absent">Not on map</button>
+        <button class="ghost" id="back">Back</button>
+      </div>
+      <div class="jump">
+        <input id="jumpno" placeholder="jump to plot no" inputmode="numeric">
+        <button class="prim" id="jumpgo">Go</button>
+      </div>
+      <div class="slider">1839 map opacity
+        <input type="range" id="op" min="0" max="100" value="90"></div>
+    </div>
+    <div id="map"></div>
+  </div>
+  <div id="toast" class="saved">Saved</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script>
+  const $ = (id) => document.getElementById(id);
+  let plots = {}, confirmed = {}, sheets = {}, loc = {}; // loc: int number -> [lat,lng]
+  let queue = [], qi = 0, history = [], done = 0, tithe = null;
+  const toast = (m) => { const t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1100); };
+  const save = () => fetch("/review/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(confirmed)}).then(()=>toast("Saved"));
+  const digi = (s) => parseInt((s.match(/\d+/)||[0])[0]);
+  const natkey = (s) => [digi(s), s];
+
+  const map = L.map("map").setView([51.7045,-0.4146], 15);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"&copy; OpenStreetMap"}).addTo(map);
+  const ctx = L.layerGroup().addTo(map);   // neighbour + prediction markers for the current plot
+
+  function sheetFor(lon, lat) {
+    let best=null, area=1e9;
+    for (const [n,b] of Object.entries(sheets)) {
+      if (lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]) { const a=(b[2]-b[0])*(b[3]-b[1]); if(a<area){area=a;best=n;} }
+    }
+    return best;
+  }
+
+  // predicted [lat,lng] for a number, from nearest located numeric neighbours
+  function predict(m) {
+    let below=null, above=null;
+    for (let k=m-1;k>=m-8;k--) if (loc[k]) { below=k; break; }
+    for (let k=m+1;k<=m+8;k++) if (loc[k]) { above=k; break; }
+    if (below && above) { const t=(m-below)/(above-below), a=loc[below], b=loc[above];
+      return { ll:[a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t], below, above }; }
+    if (below) return { ll: loc[below], below };
+    if (above) return { ll: loc[above], above };
+    return null;
+  }
+
+  function show() {
+    $("left").textContent = queue.length - qi;
+    $("done").textContent = done;
+    ctx.clearLayers();
+    if (qi >= queue.length) { $("now").innerHTML = "<b>All done.</b> Tell Claude to rebuild."; return; }
+    const no = queue[qi], p = plots[no] || {};
+    $("now").innerHTML = `<div class="num">${no}</div>` +
+      `<div class="rec">${p.name?`<b>${p.name}</b><br>`:""}${p.owner?`Owner: ${p.owner}<br>`:""}${p.occupier?`Occupier: ${p.occupier}`:""}${p.use?` &middot; ${p.use}`:""}</div>`;
+    const m = digi(no), pr = predict(m);
+    // context pins: located numbers within +/-4 of this one
+    for (let k=m-4;k<=m+4;k++) if (loc[k]) {
+      L.marker(loc[k], {icon: L.divIcon({className:"", html:`<span class="pin-lbl">${k}</span>`, iconSize:null})}).addTo(ctx);
+    }
+    if (pr) {
+      L.marker(pr.ll, {icon: L.divIcon({className:"", html:`<span class="pin-lbl pin-pred">${no}?</span>`, iconSize:null})}).addTo(ctx);
+      map.setView(pr.ll, 18);
+    }
+  }
+
+  function place(lat, lng) {
+    const no = queue[qi];
+    const s = sheetFor(lng, lat);
+    if (!s) { toast("Outside mapped sheets"); return; }
+    confirmed[no] = { sheet: Number(s), lon: +lng.toFixed(6), lat: +lat.toFixed(6) };
+    loc[digi(no)] = [lat, lng];           // future predictions use it immediately
+    history.push(qi); done++; qi++; save(); show();
+  }
+
+  map.on("click", (e) => { if (qi < queue.length) place(e.latlng.lat, e.latlng.lng); });
+  $("skip").onclick = () => { if (qi<queue.length){ history.push(qi); queue.push(queue[qi]); qi++; show(); } };
+  $("absent").onclick = () => { if (qi<queue.length){ history.push(qi); qi++; show(); } };
+  $("back").onclick = () => { if (history.length){ qi = history.pop(); show(); } };
+  $("jumpgo").onclick = () => { const v=$("jumpno").value.trim(); const i=queue.indexOf(v); if(i>=0){history.push(qi);qi=i;show();} else toast("Not in queue"); };
+  document.addEventListener("keydown",(e)=>{ if(e.target.tagName==="INPUT")return; if(e.key==="s")$("skip").click(); if(e.key==="b")$("back").click(); });
+  $("op").oninput = (e) => tithe && tithe.setOpacity(e.target.value/100);
+
+  Promise.all([
+    fetch("data/plots.json").then(r=>r.json()),
+    fetch("data/review/confirmed.json").then(r=>r.json()),
+    fetch("data/review/sheets.json").then(r=>r.json()),
+    fetch("data/plot_points.geojson").then(r=>r.json()),
+  ]).then(([pl, cf, sh, geo]) => {
+    plots=pl; confirmed=cf; sheets=sh;
+    for (const f of geo.features) { const n=digi(f.properties.number); const [lo,la]=f.geometry.coordinates; loc[n]=[la,lo]; }
+    // queue = plot numbers not yet placed, in natural order
+    const placed = new Set(Object.keys(confirmed));
+    queue = Object.keys(plots).filter(n=>/\d/.test(n) && !placed.has(n)).sort((a,b)=>{const x=natkey(a),y=natkey(b);return x[0]-y[0]||(x[1]<y[1]?-1:1);});
+    try { const a=new pmtiles.PMTiles("tithe.pmtiles"); tithe=pmtiles.leafletRasterLayer(a,{maxNativeZoom:17,opacity:.9}); tithe.on("tileerror",()=>{}); tithe.addTo(map); } catch(e){}
+    show();
+  }).catch(()=>{ $("now").innerHTML="Could not load data."; });
+  </script>
+</body>
+</html>

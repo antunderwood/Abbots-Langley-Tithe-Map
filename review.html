@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tithe plot review</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary:#37496b; --madder:#b0413e; --surface:#fcfbf9; --s2:#f3f1ea; --on:#1c1b19; --var:#4b483f; --outline:#cac6bd; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Roboto,system-ui,sans-serif; color:var(--on); background:var(--surface); }
+    header { padding:14px 20px; background:var(--primary); color:#fff; display:flex; align-items:center; gap:16px; }
+    header h1 { font-family:Fraunces,serif; font-size:20px; margin:0; font-weight:600; }
+    .tabs { margin-left:auto; display:flex; gap:6px; }
+    .tabs button { font:inherit; padding:8px 14px; border:none; border-radius:18px; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; }
+    .tabs button.active { background:#fff; color:var(--primary); font-weight:500; }
+    main { max-width:760px; margin:0 auto; padding:24px 20px; }
+    .hide { display:none; }
+    .progress { font-size:13px; color:var(--var); margin-bottom:12px; }
+    .progress b { color:var(--primary); }
+    .card { background:var(--s2); border-radius:18px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+    .crop { display:block; width:280px; height:280px; object-fit:cover; image-rendering:pixelated;
+      border-radius:12px; background:#fff; margin:0 auto 16px; border:1px solid var(--outline); }
+    .row { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    label.fld { font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--var); }
+    #num { font:inherit; font-family:Fraunces,serif; font-size:28px; font-weight:600; color:var(--primary);
+      width:120px; padding:6px 10px; border:2px solid var(--outline); border-radius:10px; text-align:center; }
+    #num:focus { outline:none; border-color:var(--primary); }
+    .rec { font-size:14px; color:var(--var); line-height:1.5; min-height:1.5em; }
+    .rec b { color:var(--on); }
+    .conf { font-size:12px; color:var(--var); }
+    .actions { display:flex; gap:10px; margin-top:18px; }
+    .actions button { flex:1; font:inherit; font-weight:500; padding:12px; border:none; border-radius:24px; cursor:pointer; }
+    .confirm { background:var(--primary); color:#fff; }
+    .reject { background:var(--s2); color:var(--var); box-shadow:inset 0 0 0 1px var(--outline); }
+    .skip { background:transparent; color:var(--var); }
+    .hint { font-size:12px; color:var(--var); text-align:center; margin-top:12px; }
+    .done { text-align:center; padding:40px; font-size:16px; color:var(--var); }
+    #map { height:calc(100vh - 52px); }
+    .saved { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--on); color:#fff;
+      padding:8px 16px; border-radius:20px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+    .saved.show { opacity:.92; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tithe plot review</h1>
+    <div class="tabs">
+      <button id="tabReview" class="active">Review queue</button>
+      <button id="tabMap">Add on map</button>
+    </div>
+  </header>
+
+  <main id="review">
+    <p class="progress"><b id="left">0</b> to review &middot; <span id="done2">0</span> confirmed this session</p>
+    <div id="cardWrap"></div>
+    <p class="hint">Enter = confirm &middot; Esc = skip (not a plot) &middot; edit the number then Enter to correct</p>
+  </main>
+
+  <div id="map" class="hide"></div>
+  <div id="toast" class="saved">Saved</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+  <script>
+  const $ = (id) => document.getElementById(id);
+  let candidates = [], confirmed = {}, sheets = {}, i = 0, sessionDone = 0;
+
+  const toast = (msg) => { const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1200); };
+  async function save() { await fetch("/review/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(confirmed)}); toast("Saved"); }
+
+  function render() {
+    const wrap = $("cardWrap");
+    const queue = candidates.filter(c => !c.done);
+    $("left").textContent = queue.length;
+    $("done2").textContent = sessionDone;
+    if (i >= queue.length) { wrap.innerHTML = '<div class="done">All reviewed. Rebuild with extract_polygons.py.</div>'; return; }
+    const c = queue[i];
+    const r = c.record;
+    wrap.innerHTML = `
+      <div class="card">
+        <img class="crop" src="data/review/${c.crop}" alt="plot label">
+        <div class="row"><label class="fld">Plot number</label>
+          <input id="num" value="${c.number}" inputmode="numeric"></div>
+        <div class="rec">${r ? `<b>${r.name||"?"}</b><br>Owner: ${r.owner||"?"}<br>Occupier: ${r.occupier||"?"} &middot; ${r.use||"?"}` : '<i>This guess is not a known plot number, correct it or skip.</i>'}</div>
+        <div class="conf">OCR guess &middot; confidence ${c.conf}</div>
+        <div class="actions">
+          <button class="reject skip" id="bSkip">Skip</button>
+          <button class="reject" id="bReject">Not a plot</button>
+          <button class="confirm" id="bConfirm">Confirm</button>
+        </div>
+      </div>`;
+    const num = $("num");
+    num.focus(); num.select();
+    $("bConfirm").onclick = () => confirm_(c, num.value.trim());
+    $("bReject").onclick = () => { c.done = true; render(); };
+    $("bSkip").onclick = () => { i++; render(); };
+    num.onkeydown = (e) => { if (e.key === "Enter") confirm_(c, num.value.trim()); if (e.key === "Escape") { c.done = true; render(); } };
+  }
+
+  async function confirm_(c, number) {
+    if (!number) return;
+    confirmed[number] = { sheet: c.sheet, col: c.col, row: c.row, lon: c.lon, lat: c.lat };
+    c.done = true; sessionDone++;
+    await save(); render();
+  }
+
+  // --- Add-on-map tab ---
+  let map = null, seedLayer = null;
+  function sheetFor(lon, lat) {
+    for (const [n, b] of Object.entries(sheets)) if (lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]) return n;
+    return null;
+  }
+  function drawSeeds() {
+    seedLayer.clearLayers();
+    for (const [num, v] of Object.entries(confirmed))
+      L.circleMarker([v.lat, v.lon], {radius:4, color:"#37496b", fillOpacity:.7, weight:1}).bindTooltip(num).addTo(seedLayer);
+  }
+  function initMap() {
+    map = L.map("map").setView([51.7045,-0.4146], 15);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+    try { const a=new pmtiles.PMTiles("tithe.pmtiles"); pmtiles.leafletRasterLayer(a,{maxNativeZoom:17,opacity:.85}).addTo(map); } catch(e){}
+    seedLayer = L.layerGroup().addTo(map); drawSeeds();
+    map.on("click", async (e) => {
+      const num = prompt("Plot number for this field?"); if (!num) return;
+      const n = sheetFor(e.latlng.lng, e.latlng.lat);
+      if (!n) { alert("Outside the mapped sheets."); return; }
+      confirmed[num.trim()] = { sheet: Number(n), lon: e.latlng.lng, lat: e.latlng.lat };
+      await save(); drawSeeds();
+    });
+  }
+
+  $("tabReview").onclick = () => { $("review").classList.remove("hide"); $("map").classList.add("hide"); $("tabReview").classList.add("active"); $("tabMap").classList.remove("active"); };
+  $("tabMap").onclick = () => { $("review").classList.add("hide"); $("map").classList.remove("hide"); $("tabMap").classList.add("active"); $("tabReview").classList.remove("active"); if(!map) initMap(); else { map.invalidateSize(); drawSeeds(); } };
+
+  Promise.all([
+    fetch("data/review/candidates.json").then(r=>r.json()),
+    fetch("data/review/confirmed.json").then(r=>r.json()),
+    fetch("data/review/sheets.json").then(r=>r.json()),
+  ]).then(([cand, conf, sh]) => { candidates=cand; confirmed=conf; sheets=sh; render(); })
+    .catch(() => { $("cardWrap").innerHTML = '<div class="done">No review data. Run scripts/prepare_review.py first.</div>'; });
+  </script>
+</body>
+</html>
