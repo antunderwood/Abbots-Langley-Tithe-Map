@@ -211,6 +211,18 @@ document.getElementById("toggleDots").addEventListener("change", (e) => {
   else dotLayer.remove();
 });
 
+// Click the map to highlight the nearest located plot within 20 px.
+map.on("click", (e) => {
+  const click = map.latLngToContainerPoint(e.latlng);
+  let best = null, bestDist = 20;
+  for (const [no, ll] of Object.entries(locations)) {
+    const pt = map.latLngToContainerPoint(ll);
+    const d = Math.hypot(click.x - pt.x, click.y - pt.y);
+    if (d < bestDist) { bestDist = d; best = no; }
+  }
+  if (best) locate(best);
+});
+
 document.getElementById("search").addEventListener("input", (e) => {
   render(e.target.value);
   if (e.target.value === "" && lastLocated) {
