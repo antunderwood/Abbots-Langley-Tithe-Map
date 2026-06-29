@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to use the Abbots Langley tithe map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary:#37496b; --madder:#b0413e; --surface:#fcfbf9; --surface-2:#f3f1ea;
+      --on:#1c1b19; --var:#4b483f; --outline:#cac6bd; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Roboto,system-ui,sans-serif; color:var(--on); background:var(--surface);
+      line-height:1.55; }
+    .wrap { max-width:760px; margin:0 auto; padding:24px 22px 64px; }
+    a { color:var(--primary); }
+    .back { display:inline-block; margin-bottom:18px; font-weight:500; text-decoration:none; }
+    .back:hover { text-decoration:underline; }
+    h1 { font-family:Fraunces,serif; font-weight:600; font-size:30px; line-height:1.1; margin:.2em 0 .1em; color:var(--primary); }
+    .lede { color:var(--var); font-size:15px; margin:0 0 28px; }
+    h2 { font-family:Fraunces,serif; font-weight:600; font-size:21px; margin:34px 0 10px; color:var(--primary); }
+    h3 { font-size:15px; margin:20px 0 4px; }
+    ul { padding-left:20px; } li { margin:6px 0; }
+    .pin { color:var(--madder); }
+    table { border-collapse:collapse; width:100%; margin:8px 0 4px; font-size:14px; }
+    th, td { text-align:left; vertical-align:top; padding:9px 10px; border-bottom:1px solid var(--outline); }
+    th { background:var(--surface-2); font-weight:600; color:var(--primary); }
+    td.col { white-space:nowrap; font-weight:500; }
+    .tag { display:inline-block; font-size:11px; font-weight:600; padding:1px 7px; border-radius:9px;
+      background:var(--surface-2); color:var(--var); border:1px solid var(--outline); }
+    .tag.on { background:#e7eede; color:#3f5d2f; border-color:#cdd9bd; }
+    .note { background:var(--surface-2); border-left:3px solid var(--madder); border-radius:8px;
+      padding:12px 14px; margin:18px 0; font-size:14px; color:var(--var); }
+    code { background:var(--surface-2); padding:1px 5px; border-radius:5px; font-size:.92em; }
+    footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--outline); font-size:13px; color:var(--var); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="index.html">&larr; Back to the map</a>
+    <h1>Using the tithe map</h1>
+    <p class="lede">This site lays the 1839 tithe map of Abbots Langley over a present-day map, and
+      links every numbered plot to its record in the tithe award. Here is how to find your way around,
+      and what the old terms mean.</p>
+
+    <h2>Finding your way around</h2>
+    <ul>
+      <li><b>Fade between the two maps.</b> The <b>Map blend</b> slider goes from today's map (left)
+        to the 1839 tithe map (right). Slide it to compare the historic field pattern with the modern
+        village.</li>
+      <li><b>Show or hide layers.</b> <b>Show 1839 map</b> turns the historic overlay on or off.
+        <b>Show located plots</b> drops a dot on every plot whose position is known, so you can see
+        the coverage at a glance.</li>
+      <li><b>Search the records.</b> Type in the search box to filter by plot number, landowner,
+        occupier, field name, or land use. The count shows how many records match.</li>
+      <li><b>Jump to a plot.</b> A result with a <span class="pin">&#128205;</span> marker has a known
+        position, click it to fly to that plot on the map and highlight it.</li>
+      <li><b>On a phone</b>, tap the menu button (top left) to open the panel; it closes when you pick
+        a plot so the map is in view.</li>
+    </ul>
+
+    <h2>What the records mean</h2>
+    <p>The tithe award was a parish-by-parish survey made after the Tithe Commutation Act of 1836,
+      recording who owned and farmed each parcel of land and what tithe was due on it. Its columns are
+      below. The <span class="tag on">shown</span> tag marks the ones that appear on this site.</p>
+
+    <table>
+      <thead><tr><th>Column</th><th>Meaning</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="col">Landowner</td><td>The person who legally owned the land.</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">Occupier</td><td>The tenant or farmer actually working the land, often someone other than the owner. "Himself" means the owner farmed it.</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">Plot number</td><td>The number written on the tithe map, linking the record to a physical parcel of land. ("Numbers referring to the plan" in the original.)</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">Name &amp; description</td><td>The local field name and type of premises, for example "Home Meadow" or "Chambersbury Farm".</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">State of cultivation</td><td>How the land was used. Common values: Arable, Meadow, Pasture, Wood, Garden, Plantation, Water, Road. (The original often abbreviates these, e.g. <code>Ara</code>, <code>Mea</code>, <code>Past</code>; this site spells them out.)</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">Quantities (A. R. P.)</td><td>Land area in the old statute measure: <b>a</b>cres, <b>r</b>oods and <b>p</b>erches (also called poles). 1 acre = 4 roods; 1 rood = 40 perches. So "5a 3r 34p" is five acres, three roods, thirty-four perches.</td><td><span class="tag on">shown</span></td></tr>
+        <tr><td class="col">Rent-charge to the Vicar (&pound; s d)</td><td>The share of the tithe rent-charge owed to the local incumbent vicar, in pounds, shillings and pence.</td><td><span class="tag">in the original</span></td></tr>
+        <tr><td class="col">Rent-charge to Impropriators (&pound; s d)</td><td>The share owed to lay impropriators: people or institutions (often descended from dissolved monasteries) who had acquired the historic right to receive tithes.</td><td><span class="tag">in the original</span></td></tr>
+        <tr><td class="col">Remarks</td><td>Miscellaneous notes, for example "Great tithes merged" or a name.</td><td><span class="tag on">shown</span></td></tr>
+      </tbody>
+    </table>
+
+    <p class="note">The rent-charge figures are recorded in the original award but are not shown on
+      this site yet. The map focuses on who held and worked each plot, what it was called, how it was
+      used, and how big it was.</p>
+
+    <footer>
+      Tithe map and apportionment data &copy; Abbots Langley Local History Society. Original records
+      held at The National Archives (IR 29 and IR 30). Modern basemap &copy; OpenStreetMap
+      contributors. <a href="index.html">Back to the map &rarr;</a>
+    </footer>
+  </div>
+</body>
+</html>

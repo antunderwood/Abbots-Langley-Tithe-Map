@@ -70,13 +70,20 @@ let highlight = null; // the single moving point highlight
 let highlightPoly = null; // the single field-fill highlight
 
 function acreage(p) {
-  // Statute measure: acres-roods-perches.
+  // Statute measure: acres-roods-perches (see help.html: 1 acre = 4 roods, 1 rood = 40 perches).
   return `${p.acres || 0}a ${p.roods || 0}r ${p.perches || 0}p`;
 }
 
+// Expand the tithe award's land-use abbreviations for display; pass through anything unknown.
+const USE_LABELS = { Ara: "Arable", Mea: "Meadow", Mead: "Meadow", Past: "Pasture", Wood: "Wood",
+  Water: "Water", Road: "Road", Garden: "Garden", Arable: "Arable", Plantation: "Plantation" };
+function landUse(u) { return u ? (USE_LABELS[u] || u) : ""; }
+
 function popupHtml(no, p) {
-  return `<b>Plot ${no}</b> &mdash; ${p.name}<br>${acreage(p)} &middot; ${p.use || "?"}<br>` +
-    `Owner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}` +
+  const use = landUse(p.use);
+  return `<b>Plot ${no}</b> &mdash; ${p.name || "?"}<br>` +
+    `Landowner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}<br>` +
+    (use ? `Land use: ${use} &middot; ` : "") + `Area: ${acreage(p)}` +
     (p.remarks ? `<br><i>${p.remarks}</i>` : "");
 }
 
@@ -106,7 +113,8 @@ function render(filter) {
   const frag = document.createDocumentFragment();
   let shown = 0;
   for (const [no, p] of Object.entries(plots)) {
-    const hay = `${no} ${p.owner} ${p.occupier} ${p.name} ${p.use}`.toLowerCase();
+    const use = landUse(p.use);
+    const hay = `${no} ${p.owner} ${p.occupier} ${p.name} ${p.use} ${use}`.toLowerCase();
     if (f && !hay.includes(f)) continue;
     shown++;
     const li = document.createElement("li");
@@ -117,9 +125,9 @@ function render(filter) {
       li.dataset.no = no;
     }
     li.innerHTML =
-      `<span class="no">${no}</span> <span class="name">${p.name}</span>${here}` +
-      `<div class="meta">${acreage(p)} &middot; ${p.use || "?"}</div>` +
-      `<div class="meta">Owner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}</div>` +
+      `<span class="no">${no}</span> <span class="name">${p.name || "?"}</span>${here}` +
+      `<div class="meta">${use ? `${use} &middot; ` : ""}${acreage(p)}</div>` +
+      `<div class="meta">Landowner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}</div>` +
       (p.remarks ? `<div class="meta rem">${p.remarks}</div>` : "");
     frag.appendChild(li);
   }
