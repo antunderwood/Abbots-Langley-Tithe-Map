@@ -122,7 +122,7 @@ function locate(no) {
   if (!ll) return;
   map.setView(ll, 17);
   highlight = L.circleMarker(ll, { radius: 12, color: "#d62828", weight: 3, fillOpacity: 0.15 });
-  highlight.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false }).openPopup();
+  highlight.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false, offset: [0, -6] }).openPopup();
 }
 
 function render(filter) {
