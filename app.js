@@ -113,7 +113,7 @@ function locate(no) {
   if (ring) {
     const latlngs = ring.map(([lon, lat]) => [lat, lon]);
     highlightPoly = L.polygon(latlngs, { color: "#d62828", weight: 2, fillColor: "#d62828", fillOpacity: 0.3 });
-    highlightPoly.addTo(map).bindPopup(popupHtml(no, plots[no]));
+    highlightPoly.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false });
     map.fitBounds(highlightPoly.getBounds(), { maxZoom: 18, padding: [40, 40] });
     highlightPoly.openPopup();
     return;
@@ -122,7 +122,7 @@ function locate(no) {
   if (!ll) return;
   map.setView(ll, 17);
   highlight = L.circleMarker(ll, { radius: 12, color: "#d62828", weight: 3, fillOpacity: 0.15 });
-  highlight.addTo(map).bindPopup(popupHtml(no, plots[no])).openPopup();
+  highlight.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false }).openPopup();
 }
 
 function render(filter) {
