@@ -50,14 +50,10 @@ menuBtn.addEventListener("click", () => {
 });
 document.getElementById("scrim").addEventListener("click", closeDrawer);
 
-// Dismissible preview notice, remembered so reviewers aren't nagged on every visit.
+// Copyright notice: dismissible for this session only.
 const previewNote = document.getElementById("preview-note");
 if (previewNote) {
-  try { if (localStorage.getItem("previewDismissed")) previewNote.classList.add("hidden"); } catch (e) {}
-  document.getElementById("preview-close").addEventListener("click", () => {
-    previewNote.classList.add("hidden");
-    try { localStorage.setItem("previewDismissed", "1"); } catch (e) {}
-  });
+  document.getElementById("preview-close").addEventListener("click", () => previewNote.classList.add("hidden"));
 }
 
 // --- Plot records ----------------------------------------------------------
