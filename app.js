@@ -104,11 +104,11 @@ function popupHtml(no, p) {
 }
 
 // Pan to a plot and highlight it with a point marker.
-function locate(no) {
+function locate(no, zoom = 17) {
   if (highlight) { highlight.remove(); highlight = null; }
   const ll = locations[no];
   if (!ll) return;
-  map.setView(ll, 17);
+  map.setView(ll, zoom);
   highlight = L.circleMarker(ll, { radius: 12, color: "#d62828", weight: 3, fillOpacity: 0.15 });
   highlight.addTo(map).bindPopup(popupHtml(no, plots[no]), { autoPan: false, offset: [0, -6] }).openPopup();
 }
@@ -220,7 +220,7 @@ map.on("click", (e) => {
     const d = Math.hypot(click.x - pt.x, click.y - pt.y);
     if (d < bestDist) { bestDist = d; best = no; }
   }
-  if (best) locate(best);
+  if (best) locate(best, map.getZoom());
 });
 
 document.getElementById("search").addEventListener("input", (e) => {
