@@ -16,6 +16,10 @@ compatibility_date = "2024-09-01"
 [assets]
 directory = "."
 binding = "ASSETS"
+# Static assets are normally served before the Worker runs, which means our 206 range handler in
+# worker.js is bypassed for tithe.pmtiles (assets answer Range with 200). Force the Worker to run
+# first for just that file so PMTiles gets real partial responses; everything else serves directly.
+run_worker_first = ["/tithe.pmtiles"]
 
 [[kv_namespaces]]
 binding = "OVERRIDES"
