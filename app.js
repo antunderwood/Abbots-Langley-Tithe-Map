@@ -79,11 +79,28 @@ const USE_LABELS = { Ara: "Arable", Mea: "Meadow", Mead: "Meadow", Past: "Pastur
   Water: "Water", Road: "Road", Garden: "Garden", Arable: "Arable", Plantation: "Plantation" };
 function landUse(u) { return u ? (USE_LABELS[u] || u) : ""; }
 
+// Tithe rent-charge is recorded per holding (a group of plots), so we label it as such and hide a
+// payee whose amount is zero. See help.html. rent = { v:[£,s,d], i:[£,s,d], n: plots-in-holding }.
+function rentText(p) {
+  const r = p.rent;
+  if (!r) return "";
+  const fmt = (a) => `&pound;${a[0]} ${a[1]}s ${a[2]}d`;
+  const nz = (a) => !(a[0] === "0" && a[1] === "0" && a[2] === "0");
+  const parts = [];
+  if (nz(r.v)) parts.push(`vicar ${fmt(r.v)}`);
+  if (nz(r.i)) parts.push(`impropriators ${fmt(r.i)}`);
+  if (!parts.length) return "";
+  const head = r.n > 1 ? `Rent-charge (holding of ${r.n} plots)` : "Rent-charge";
+  return `${head}: ${parts.join("; ")}`;
+}
+
 function popupHtml(no, p) {
   const use = landUse(p.use);
+  const rent = rentText(p);
   return `<b>Plot ${no}</b> &mdash; ${p.name || "?"}<br>` +
     `Landowner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}<br>` +
     (use ? `Land use: ${use} &middot; ` : "") + `Area: ${acreage(p)}` +
+    (rent ? `<br>${rent}` : "") +
     (p.remarks ? `<br><i>${p.remarks}</i>` : "");
 }
 
@@ -128,6 +145,7 @@ function render(filter) {
       `<span class="no">${no}</span> <span class="name">${p.name || "?"}</span>${here}` +
       `<div class="meta">${use ? `${use} &middot; ` : ""}${acreage(p)}</div>` +
       `<div class="meta">Landowner: ${p.owner || "?"}<br>Occupier: ${p.occupier || "?"}</div>` +
+      (rentText(p) ? `<div class="meta">${rentText(p)}</div>` : "") +
       (p.remarks ? `<div class="meta rem">${p.remarks}</div>` : "");
     frag.appendChild(li);
   }

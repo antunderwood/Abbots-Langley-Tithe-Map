@@ -13,6 +13,8 @@ source_images/*
 *.mbtiles
 award.xls
 *.xls
+award.csv
+*.csv
 
 # Review/recovery working files: regenerable from confirmed.json + the scans
 data/review/crops/
