@@ -1,22 +1,22 @@
-# Cloudflare Pages config. Static assets are served from the repo root; the Pages Function in
-# functions/api/overrides.js handles the live edit layer and needs the OVERRIDES KV binding below.
+# Cloudflare Worker (Static Assets model). `npx wrangler deploy` builds this: the static site is
+# served via the ASSETS binding and worker.js handles /api/overrides backed by the OVERRIDES KV
+# namespace. Files excluded from the static upload are listed in .assetsignore.
 #
 # One-time setup:
-#   1. npx wrangler kv namespace create OVERRIDES        # prints an id; paste it below
-#   2. (optional, for `wrangler pages dev` local KV)  npx wrangler kv namespace create OVERRIDES --preview
-#   3. Deploy via the Pages dashboard (connect the repo) or:  npx wrangler pages deploy .
-#   4. In the dashboard, add a Cloudflare Access application covering  /edit.html  and  /api/overrides
-#      restricted to your editor email(s). That is what password/identity-protects the edit URL.
+#   1. Create the KV namespace and paste its id below:
+#        npx wrangler kv namespace create OVERRIDES        # prints id  (or create it in the dashboard)
+#   2. Commit + push, then deploy (the dashboard "Deploy command" is `npx wrangler deploy`).
+#   3. Disable the public *.workers.dev route, attach your subdomain, and put a Cloudflare Access
+#      application over the whole site (see README). Access is the password protection.
 
 name = "abbots-langley-tithe-map"
-pages_build_output_dir = "."
+main = "worker.js"
 compatibility_date = "2024-09-01"
 
-# KV binding for the edit layer. For Pages git-integration, set this binding in the dashboard
-# (Settings -> Functions -> KV namespace bindings: OVERRIDES) instead, and leave the block below
-# commented out so the build does not fail on a placeholder id. Uncomment + fill the real id only
-# if you deploy via `wrangler pages deploy` from the CLI.
-# [[kv_namespaces]]
-# binding = "OVERRIDES"
-# id = "REPLACE_WITH_KV_NAMESPACE_ID"
-# preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"   # only for `wrangler pages dev`
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "OVERRIDES"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

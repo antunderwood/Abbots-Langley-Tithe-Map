@@ -166,19 +166,22 @@ Misplaced plots can be corrected on the deployed site through a gated editor, wi
 
 - **`edit.html`** is the editor: click a plot to select it, drag the marker to the right spot, Save.
   It can also Add, Delete, and Revert plots. Each change is saved instantly.
-- **`functions/api/overrides.js`** is a Cloudflare Pages Function: `GET /api/overrides` returns the
-  edit layer (the public viewer merges it over the baked-in data on load), `POST /api/overrides`
-  applies one edit and persists it to the **OVERRIDES** KV namespace.
+- **`worker.js`** is a Cloudflare Worker (Static Assets model): it serves the site and handles
+  `GET /api/overrides` (returns the edit layer; the viewer merges it over the baked-in data on load)
+  and `POST /api/overrides` (applies one edit, persisted to the **OVERRIDES** KV namespace).
 - The viewer (`app.js`) merges overrides live: a moved/added plot uses the new position (its polygon
   drops until the next offline rebuild), a deleted plot disappears.
 
 ### Cloudflare setup (one-time)
 
-1. `npx wrangler kv namespace create OVERRIDES`, paste the printed id into `wrangler.toml`.
-2. Deploy: connect the repo in the Pages dashboard, or `npx wrangler pages deploy .`.
-3. In the dashboard, add a **Cloudflare Access** application covering `/edit.html` and
-   `/api/overrides`, restricted to your editor email(s). This is what protects the edit URL; the
-   Function also rejects any write that did not arrive through Access.
+1. Create the KV namespace and paste its id into `wrangler.toml`:
+   `npx wrangler kv namespace create OVERRIDES` (or create it in the dashboard).
+2. Deploy via git: connect the repo as a Worker (Deploy command `npx wrangler deploy`), or run
+   `npx wrangler deploy` locally.
+3. Disable the public `*.workers.dev` route (Worker -> Settings -> Domains & Routes), attach your
+   subdomain, and add a **Cloudflare Access** application over the whole site (or just `/edit.html`
+   + `/api/overrides` if the map is meant to be public). Access is the password protection; the
+   Worker also rejects any write that did not arrive through Access.
 
 ### Local editing (no Cloudflare)
 

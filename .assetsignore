@@ -10,6 +10,7 @@ data/review/
 review.html
 assist.html
 resolve.html
+worker.js
 wrangler.toml
 .gitignore
 *.md
